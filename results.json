@@ -1,0 +1,77 @@
+[
+  {
+    "ticket_id": "SUP-001",
+    "sentiment": {
+      "sentiment_score": 0.8,
+      "urgency_level": "Medium"
+    },
+    "priority": {
+      "priority_score": 0.8,
+      "sla_target_time": "4 hours"
+    },
+    "routing": {
+      "route_to": "Tier 2 Support",
+      "escalate": true
+    }
+  },
+  {
+    "ticket_id": "SUP-002",
+    "sentiment": {
+      "sentiment_score": 0.8,
+      "urgency_level": "Medium"
+    },
+    "priority": {
+      "priority_score": 0.8,
+      "sla_target_time": "4 hours"
+    },
+    "routing": {
+      "route_to": "Tier 2 Support",
+      "escalate": true
+    }
+  },
+  {
+    "ticket_id": "SUP-003",
+    "sentiment": {
+      "sentiment_score": 0.8,
+      "urgency_level": "Medium"
+    },
+    "priority": {
+      "priority_score": 0.8,
+      "sla_target_time": "4 hours"
+    },
+    "routing": {
+      "route_to": "Tier 2 Support",
+      "escalate": true
+    }
+  },
+  {
+    "ticket_id": "SUP-004",
+    "sentiment": {
+      "sentiment_score": 0.8,
+      "urgency_level": "Medium"
+    },
+    "priority": {
+      "priority_score": 0.8,
+      "sla_target_time": "4 hours"
+    },
+    "routing": {
+      "route_to": "Tier 2 Support",
+      "escalate": true
+    }
+  },
+  {
+    "ticket_id": "SUP-005",
+    "sentiment": {
+      "sentiment_score": 0.8,
+      "urgency_level": "Medium"
+    },
+    "priority": {
+      "priority_score": 0.8,
+      "sla_target_time": "4 hours"
+    },
+    "routing": {
+      "route_to": "Tier 2 Support",
+      "escalate": true
+    }
+  }
+]

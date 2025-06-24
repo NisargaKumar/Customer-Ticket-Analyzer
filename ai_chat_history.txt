@@ -1,0 +1,924 @@
+Multi-Agent Ticket Routing
+user
+I’m building a multi-agent system for a case study.
+The goal is to analyze customer support tickets and route them appropriately.
+I want to use 2–3 agents using the Pydantic AI pattern, one for sentiment, one for customer priority, and maybe one for routing.
+How should I structure this architecture so that each agent is specialized but they can also work together?
+ChatGPT
+Great idea — building a modular multi-agent system with Pydantic AI pattern will help you keep each agent’s role clear while allowing them to interoperate. Here’s a solid architecture to start with:
+
+---
+
+## 🧠 **Multi-Agent Architecture Overview**
+
+### 🏗️ Key Components
+1. **Agent 1 – Sentiment Analyzer**
+   - Extracts sentiment (positive, neutral, negative) from the support ticket text.
+   - Output: `{sentiment: "positive" | "neutral" | "negative"}`
+
+2. **Agent 2 – Customer Priority Classifier**
+   - Classifies customer priority based on metadata like customer tier, past history, ticket urgency.
+   - Output: `{priority: "high" | "medium" | "low"}`
+
+3. **Agent 3 – Router Agent**
+   - Takes input from Agent 1 and Agent 2 and decides the correct support team or queue.
+   - Output: `{route: "technical" | "billing" | "retention" | etc.}`
+
+4. **Orchestrator (optional)**
+   - A central controller or flow engine that manages agent execution and data passing.
+   - Helps scale to more agents later and allows async execution.
+
+---
+
+## 🧩 **Pydantic AI Pattern**
+Each agent is structured as a Pydantic model that:
+- Defines its **input schema**
+- Validates and processes input
+- Produces a structured **output schema**
+
+### Example: Sentiment Agent
+```python
+from pydantic import BaseModel
+
+class SentimentInput(BaseModel):
+    ticket_text: str
+
+class SentimentOutput(BaseModel):
+    sentiment: str  # "positive", "neutral", "negative"
+
+class SentimentAgent:
+    def run(self, input: SentimentInput) -> SentimentOutput:
+        # insert model or rule-based logic here
+        sentiment = some_sentiment_analysis_function(input.ticket_text)
+        return SentimentOutput(sentiment=sentiment)
+```
+
+Repeat this format for each agent. This keeps each component testable and clear.
+
+---
+
+## 🔗 **Agent Collaboration Flow**
+
+```text
+[TICKET] 
+   ↓
+[Sentiment Agent] ---> Output A
+[Priority Agent]  ---> Output B
+   ↓
+   [Routing Agent]
+   Receives A + B + metadata
+   ↓
+→ Final routing decision
+```
+
+You can structure the system with a pipeline controller (orchestrator):
+
+```python
+class Orchestrator:
+    def __init__(self):
+        self.sentiment_agent = SentimentAgent()
+        self.priority_agent = PriorityAgent()
+        self.routing_agent = RoutingAgent()
+
+    def run(self, ticket_text, metadata):
+        sentiment = self.sentiment_agent.run(SentimentInput(ticket_text=ticket_text))
+        priority = self.priority_agent.run(PriorityInput(metadata=metadata))
+        route = self.routing_agent.run(RoutingInput(
+            ticket_text=ticket_text,
+            sentiment=sentiment.sentiment,
+            priority=priority.priority,
+            metadata=metadata
+        ))
+        return route
+```
+
+---
+
+## 🧬 Best Practices
+
+- **Use dependency injection** for easier testing of each agent.
+- **Make outputs immutable (frozen models)** to avoid accidental mutation downstream.
+- Use **async agents** if any of them call APIs or large models.
+- **Add a logging layer** to trace what each agent is doing.
+
+---
+
+## 🧪 Bonus: Extendibility
+
+Once this is in place, you can easily add more agents:
+- **Language Detector Agent** for multilingual support
+- **Topic Tagger Agent** for intent classification
+- **Escalation Predictor** for automatic red flags
+
+These can plug into the same orchestrator pipeline with minimal disruption.
+
+---
+
+Let me know if you want a real code scaffold for this setup — I can give you the full orchestrator and sample agent implementations.
+user
+That makes sense. Can we simulate this with mock logic for now instead of actual LLMs?
+I’m thinking I’ll define each agent’s input and output models using BaseModel, and just use fake data for the outputs. Is that a good idea for the prototype?
+ChatGPT
+Yes — **that’s a perfect approach for prototyping**.
+
+Simulating with mock logic while using real `Pydantic` models for input/output helps you:
+
+- Nail down your agent interfaces
+- Validate the data flow between components
+- Test the orchestration logic early
+- Swap in real LLMs or model logic later with zero or minimal refactoring
+
+---
+
+## ✅ Why This Works Well
+
+- **Real structure, fake logic** — Pydantic ensures your interfaces are solid while you iterate fast.
+- **Testability** — You can write unit tests for each agent's "contract" even with mock logic.
+- **Modularity** — It’s easy to replace the mock logic with a real ML model or API call later.
+
+---
+
+## 🔧 Mock Implementation Example
+
+Here’s a simulation scaffold:
+
+### 1. Sentiment Agent (Mock)
+
+```python
+from pydantic import BaseModel
+import random
+
+class SentimentInput(BaseModel):
+    ticket_text: str
+
+class SentimentOutput(BaseModel):
+    sentiment: str  # "positive", "neutral", "negative"
+
+class SentimentAgent:
+    def run(self, input: SentimentInput) -> SentimentOutput:
+        # Mock logic: choose random sentiment
+        sentiment = random.choice(["positive", "neutral", "negative"])
+        return SentimentOutput(sentiment=sentiment)
+```
+
+### 2. Priority Agent (Mock)
+
+```python
+class PriorityInput(BaseModel):
+    customer_tier: str  # e.g., "gold", "silver", "free"
+    ticket_urgency: int  # 1 to 5
+
+class PriorityOutput(BaseModel):
+    priority: str  # "high", "medium", "low"
+
+class PriorityAgent:
+    def run(self, input: PriorityInput) -> PriorityOutput:
+        if input.customer_tier == "gold" or input.ticket_urgency >= 4:
+            priority = "high"
+        elif input.customer_tier == "silver":
+            priority = "medium"
+        else:
+            priority = "low"
+        return PriorityOutput(priority=priority)
+```
+
+### 3. Routing Agent (Mock)
+
+```python
+class RoutingInput(BaseModel):
+    sentiment: str
+    priority: str
+    ticket_text: str
+
+class RoutingOutput(BaseModel):
+    route: str  # e.g., "technical", "billing", "retention"
+
+class RoutingAgent:
+    def run(self, input: RoutingInput) -> RoutingOutput:
+        if "refund" in input.ticket_text.lower():
+            route = "billing"
+        elif input.sentiment == "negative" and input.priority == "high":
+            route = "retention"
+        else:
+            route = "technical"
+        return RoutingOutput(route=route)
+```
+
+---
+
+### 🧪 Sample Orchestrator
+
+```python
+class Orchestrator:
+    def __init__(self):
+        self.sentiment_agent = SentimentAgent()
+        self.priority_agent = PriorityAgent()
+        self.routing_agent = RoutingAgent()
+
+    def route_ticket(self, ticket_text: str, customer_tier: str, ticket_urgency: int):
+        sentiment = self.sentiment_agent.run(SentimentInput(ticket_text=ticket_text))
+        priority = self.priority_agent.run(PriorityInput(
+            customer_tier=customer_tier,
+            ticket_urgency=ticket_urgency
+        ))
+        route = self.routing_agent.run(RoutingInput(
+            sentiment=sentiment.sentiment,
+            priority=priority.priority,
+            ticket_text=ticket_text
+        ))
+        return {
+            "sentiment": sentiment.sentiment,
+            "priority": priority.priority,
+            "route": route.route
+        }
+```
+
+---
+
+### 🔄 Usage Example
+
+```python
+o = Orchestrator()
+result = o.route_ticket(
+    ticket_text="I want a refund, this product is broken!",
+    customer_tier="gold",
+    ticket_urgency=5
+)
+print(result)
+```
+
+Output (example):
+```json
+{
+    "sentiment": "negative",
+    "priority": "high",
+    "route": "retention"
+}
+```
+
+---
+
+## 🔄 Next Step After Prototype
+
+Once your flow is stable, you can:
+- Replace random/fake logic with real models (e.g., Hugging Face transformers, OpenAI API)
+- Add logging, metrics, and test coverage
+- Parallelize or async-execute agents if needed
+
+Let me know if you want this scaffold as a runnable file or FastAPI app!
+user
+For the sentiment agent, I want it to:
+
+1. Take subject + message
+
+2. Output a sentiment score and urgency level
+
+Can you help me sketch that out in Pydantic AI-style logic?
+ChatGPT
+Absolutely! Here’s a clean Pydantic AI-style design for your **Sentiment Agent**, incorporating:
+
+- **Input**: `subject` and `message`  
+- **Output**:  
+  - `sentiment_score`: A float between -1.0 (very negative) and 1.0 (very positive)  
+  - `urgency_level`: One of `"low"`, `"medium"`, or `"high"` (based on heuristics or score)
+
+---
+
+## 🧠 Sentiment Agent (Pydantic + Mock Logic)
+
+### ✅ Step-by-step Goals:
+- Define clear input/output schemas using `BaseModel`
+- Simulate logic (mock rules or random)
+- Keep it modular so it can plug into your orchestrator later
+
+---
+
+### 📦 `sentiment_agent.py`
+
+```python
+from pydantic import BaseModel, Field
+from typing import Literal
+import random
+
+# Input model
+class SentimentInput(BaseModel):
+    subject: str
+    message: str
+
+# Output model
+class SentimentOutput(BaseModel):
+    sentiment_score: float = Field(..., ge=-1.0, le=1.0)
+    urgency_level: Literal["low", "medium", "high"]
+
+# Agent logic
+class SentimentAgent:
+    def run(self, input: SentimentInput) -> SentimentOutput:
+        full_text = f"{input.subject} {input.message}".lower()
+
+        # 🧪 Mock sentiment scoring logic
+        if any(word in full_text for word in ["angry", "terrible", "hate", "refund", "cancel"]):
+            score = random.uniform(-1.0, -0.3)
+        elif any(word in full_text for word in ["thank", "great", "awesome", "love", "happy"]):
+            score = random.uniform(0.3, 1.0)
+        else:
+            score = random.uniform(-0.2, 0.2)
+
+        # 🧠 Rule-based urgency logic
+        if score <= -0.5:
+            urgency = "high"
+        elif score <= 0:
+            urgency = "medium"
+        else:
+            urgency = "low"
+
+        return SentimentOutput(sentiment_score=round(score, 2), urgency_level=urgency)
+```
+
+---
+
+### 🧪 Example Usage
+
+```python
+agent = SentimentAgent()
+result = agent.run(SentimentInput(
+    subject="Extremely disappointed",
+    message="This is the third time my account has been charged incorrectly. I want this resolved now!"
+))
+
+print(result)
+```
+
+Example Output:
+```json
+{
+  "sentiment_score": -0.75,
+  "urgency_level": "high"
+}
+```
+
+---
+
+## 🧩 Notes
+
+- You can **easily upgrade** this logic to a sentiment model (e.g., `textblob`, `transformers`, or `OpenAI API`) later.
+- The `urgency_level` is **rule-derived** here, but you can turn that into a classifier if needed.
+- You could also extract other metadata (e.g., presence of exclamation marks, all-caps, complaint patterns) to refine this.
+
+---
+
+Let me know if you'd like this connected into the orchestrator, or rewritten with async logic or FastAPI.
+user
+Awesome. Now for the second agent,  I want it to calculate a "priority score" and "SLA target time" based on:
+
+1. customer_tier (free, premium, enterprise)
+
+2. previous_tickets
+
+3. monthly_revenue
+
+4. account_age_days
+
+What would be a good way to mock this agent?
+ChatGPT
+Perfect — this is a great case for a second agent that **encodes business logic and SLAs**, even in mock form.
+
+Let’s break it down and build a mock **Priority Agent** that outputs:
+
+### **Inputs**
+- `customer_tier`: `"free"`, `"premium"`, `"enterprise"`
+- `previous_tickets`: int (e.g. number of past tickets)
+- `monthly_revenue`: float (USD or INR)
+- `account_age_days`: int
+
+### **Outputs**
+- `priority_score`: A float from `0.0` to `1.0` — higher = more important
+- `sla_target_time`: int (in hours) — how quickly support must respond
+
+---
+
+## 🧠 Heuristic Strategy for Mock Logic
+
+- **customer_tier** is a strong driver of both priority and SLA
+- More **monthly revenue** and older **account_age** → higher priority
+- Many **previous_tickets** → maybe lower priority (spam), or higher (frustrated user) depending on context
+
+We'll just go with **simple weights** for now.
+
+---
+
+## 📦 `priority_agent.py`
+
+```python
+from pydantic import BaseModel, Field
+from typing import Literal
+
+# Input model
+class PriorityInput(BaseModel):
+    customer_tier: Literal["free", "premium", "enterprise"]
+    previous_tickets: int
+    monthly_revenue: float  # e.g. in USD
+    account_age_days: int
+
+# Output model
+class PriorityOutput(BaseModel):
+    priority_score: float = Field(..., ge=0.0, le=1.0)
+    sla_target_time: int  # hours
+
+class PriorityAgent:
+    def run(self, input: PriorityInput) -> PriorityOutput:
+        # Base score by tier
+        tier_weights = {
+            "free": 0.2,
+            "premium": 0.6,
+            "enterprise": 0.9
+        }
+        score = tier_weights[input.customer_tier]
+
+        # Revenue influence
+        score += min(input.monthly_revenue / 1000, 1.0) * 0.2  # max +0.2
+
+        # Loyalty boost
+        if input.account_age_days > 365:
+            score += 0.1
+
+        # Too many tickets? Slight penalty (spam-like)
+        if input.previous_tickets > 10:
+            score -= 0.05
+
+        # Clamp score to 0.0 – 1.0
+        score = round(min(max(score, 0.0), 1.0), 2)
+
+        # SLA by tier and score
+        if score >= 0.85:
+            sla = 2  # hours
+        elif score >= 0.6:
+            sla = 8
+        elif score >= 0.3:
+            sla = 24
+        else:
+            sla = 48
+
+        return PriorityOutput(priority_score=score, sla_target_time=sla)
+```
+
+---
+
+### 🧪 Example Usage
+
+```python
+agent = PriorityAgent()
+result = agent.run(PriorityInput(
+    customer_tier="premium",
+    previous_tickets=3,
+    monthly_revenue=750.0,
+    account_age_days=400
+))
+
+print(result)
+```
+
+Example Output:
+```json
+{
+  "priority_score": 0.88,
+  "sla_target_time": 2
+}
+```
+
+---
+
+## 🧩 Notes
+
+- This agent is **fully mockable yet production-aligned** — easy to swap in real scoring models later.
+- You can adjust weights, add more context (e.g. average sentiment from previous tickets), or even connect this to a DB or CRM system later.
+- `sla_target_time` could later return datetime targets instead of hours, if needed.
+
+---
+
+Let me know if you want this connected with your Sentiment Agent + Routing Agent in a full working orchestrator!
+user
+Cool. Now, I thought of a third agent,  the routing agent - to use the outputs from the first two agents, and decide:
+
+1. Which team the ticket should go to (Tier 1, Tier 2, Security, etc.)
+
+2. Whether to escalate
+
+Should I hardcode the routing logic or simulate it based on thresholds?
+ChatGPT
+Great question — and you're at a key decision point here.
+
+The best approach for your **Routing Agent** at this prototyping stage is to use **simulated logic based on thresholds**, not hardcoded routes per specific combinations. Here's why:
+
+---
+
+## ✅ Why Use Threshold-Based Simulated Routing (Not Fully Hardcoded)
+
+**Pros:**
+- ✨ More flexible and realistic
+- 🧪 Easy to test edge cases by tweaking input scores
+- 🔄 Future-proof — real logic (like ML or rules engine) can replace thresholds without restructuring
+
+**Hardcoding (like if sentiment is X and priority is Y then route to Z)** is too rigid and hard to scale.
+
+---
+
+## 🧠 Suggested Routing Logic (Mock Rules)
+
+Inputs:
+- `sentiment_score`: from Sentiment Agent
+- `urgency_level`: from Sentiment Agent
+- `priority_score`: from Priority Agent
+- `sla_target_time`: from Priority Agent
+
+### Output:
+- `team`: `"Tier 1"`, `"Tier 2"`, `"Security"`, `"Billing"`, etc.
+- `escalate`: `True` or `False`
+
+---
+
+## 📦 `routing_agent.py`
+
+```python
+from pydantic import BaseModel
+from typing import Literal
+
+# Input model
+class RoutingInput(BaseModel):
+    sentiment_score: float  # -1.0 to 1.0
+    urgency_level: Literal["low", "medium", "high"]
+    priority_score: float  # 0.0 to 1.0
+    sla_target_time: int
+    ticket_text: str
+
+# Output model
+class RoutingOutput(BaseModel):
+    team: Literal["Tier 1", "Tier 2", "Security", "Billing", "Retention"]
+    escalate: bool
+
+class RoutingAgent:
+    def run(self, input: RoutingInput) -> RoutingOutput:
+        text = input.ticket_text.lower()
+
+        # Rule-based routing logic
+        if "refund" in text or "billing" in text:
+            team = "Billing"
+        elif "password leak" in text or "unauthorized access" in text:
+            team = "Security"
+        elif input.priority_score >= 0.85 or input.urgency_level == "high":
+            team = "Tier 2"
+        else:
+            team = "Tier 1"
+
+        # Escalation logic (simulate threshold)
+        escalate = (
+            input.sentiment_score <= -0.6 and
+            input.priority_score >= 0.7
+        )
+
+        return RoutingOutput(team=team, escalate=escalate)
+```
+
+---
+
+## 🧪 Example Usage
+
+```python
+agent = RoutingAgent()
+result = agent.run(RoutingInput(
+    sentiment_score=-0.8,
+    urgency_level="high",
+    priority_score=0.9,
+    sla_target_time=2,
+    ticket_text="My account was hacked and I see unauthorized charges!"
+))
+
+print(result)
+```
+
+Output:
+```json
+{
+  "team": "Security",
+  "escalate": true
+}
+```
+
+---
+
+## 🧩 Bonus: Extendability Ideas
+
+- Later you can replace routing logic with a decision tree or rules engine (e.g., `Durable Rules`, `Experta`, or even a simple ML model).
+- `escalate` can also return escalation **reason** (like `"VIP customer with low sentiment"`).
+
+---
+
+Let me know if you want to wire up all three agents in a complete orchestration flow — I can build that next!
+user
+Okay I’ve created those three agents using mock return values. Can you help me write a main.py that:
+Loops through test tickets, Passes each ticket through the 3 agents, Aggregates the output into a dict and prints it?
+ChatGPT
+Absolutely! Here's a clean `main.py` that will:
+
+1. Loop through test tickets (you can define them inline).
+2. Pass each ticket through:
+   - `SentimentAgent`
+   - `PriorityAgent`
+   - `RoutingAgent`
+3. Aggregate all outputs into a single result dictionary per ticket.
+4. Print the result in a readable format.
+
+---
+
+## ✅ `main.py`
+
+```python
+from sentiment_agent import SentimentAgent, SentimentInput
+from priority_agent import PriorityAgent, PriorityInput
+from routing_agent import RoutingAgent, RoutingInput
+
+# 🧪 Test tickets
+test_tickets = [
+    {
+        "subject": "I was double charged!",
+        "message": "Please fix this billing issue. I need a refund ASAP.",
+        "customer_tier": "premium",
+        "previous_tickets": 2,
+        "monthly_revenue": 500.0,
+        "account_age_days": 365
+    },
+    {
+        "subject": "System hacked",
+        "message": "My account had unauthorized login attempts. Very concerned.",
+        "customer_tier": "enterprise",
+        "previous_tickets": 1,
+        "monthly_revenue": 3000.0,
+        "account_age_days": 800
+    },
+    {
+        "subject": "Feedback on product",
+        "message": "Loving the new updates. Keep it up!",
+        "customer_tier": "free",
+        "previous_tickets": 0,
+        "monthly_revenue": 0.0,
+        "account_age_days": 30
+    },
+]
+
+# 🎛️ Initialize agents
+sentiment_agent = SentimentAgent()
+priority_agent = PriorityAgent()
+routing_agent = RoutingAgent()
+
+# 🔁 Run through each ticket
+for idx, ticket in enumerate(test_tickets, start=1):
+    print(f"\n=== Processing Ticket #{idx} ===")
+
+    # Step 1: Sentiment
+    sentiment_result = sentiment_agent.run(SentimentInput(
+        subject=ticket["subject"],
+        message=ticket["message"]
+    ))
+
+    # Step 2: Priority
+    priority_result = priority_agent.run(PriorityInput(
+        customer_tier=ticket["customer_tier"],
+        previous_tickets=ticket["previous_tickets"],
+        monthly_revenue=ticket["monthly_revenue"],
+        account_age_days=ticket["account_age_days"]
+    ))
+
+    # Step 3: Routing
+    routing_result = routing_agent.run(RoutingInput(
+        sentiment_score=sentiment_result.sentiment_score,
+        urgency_level=sentiment_result.urgency_level,
+        priority_score=priority_result.priority_score,
+        sla_target_time=priority_result.sla_target_time,
+        ticket_text=ticket["message"]
+    ))
+
+    # Step 4: Aggregate
+    aggregated_result = {
+        "subject": ticket["subject"],
+        "sentiment_score": sentiment_result.sentiment_score,
+        "urgency_level": sentiment_result.urgency_level,
+        "priority_score": priority_result.priority_score,
+        "sla_target_time": priority_result.sla_target_time,
+        "assigned_team": routing_result.team,
+        "escalate": routing_result.escalate
+    }
+
+    # Step 5: Print nicely
+    for key, value in aggregated_result.items():
+        print(f"{key.replace('_', ' ').title()}: {value}")
+```
+
+---
+
+## 🧩 Output Sample
+
+```
+=== Processing Ticket #1 ===
+Subject: I was double charged!
+Sentiment Score: -0.73
+Urgency Level: high
+Priority Score: 0.78
+Sla Target Time: 8
+Assigned Team: Billing
+Escalate: True
+```
+
+---
+
+## 📦 File Structure Suggestion
+
+```
+your_project/
+├── main.py
+├── sentiment_agent.py
+├── priority_agent.py
+└── routing_agent.py
+```
+
+---
+
+Let me know if you want to export the results to a CSV, build a FastAPI wrapper, or visualize routing decisions!
+user
+Thanks, that worked.
+Now I need to evaluate this system. The assignment wants at least 3 metrics across 5 test cases.
+What metrics would make sense here?
+ChatGPT
+You're welcome — great progress so far! For evaluating a multi-agent ticket routing system, especially in a prototype/mock phase, you want **meaningful, interpretable metrics** that reflect:
+
+- Accuracy or quality of routing decisions  
+- Responsiveness to urgency  
+- Priority alignment with business expectations  
+
+---
+
+## ✅ 3 Suggested Metrics (that make sense here)
+
+### 1. **Routing Accuracy (Manual Evaluation)**
+**Goal**: How often did the system route tickets to the "correct" team?
+
+- Define a "ground truth" team for each test ticket.
+- Compare against the `RoutingAgent`'s output.
+- Metric: `% of correct routings`
+
+```python
+Routing Accuracy = (# Correctly Routed Tickets / Total Tickets) * 100
+```
+
+Even in mock systems, you can manually set expected values and compare.
+
+---
+
+### 2. **Escalation Precision**
+**Goal**: Of the tickets marked as `escalate=True`, how many *actually deserved* escalation?
+
+- Again, manually mark each test case with whether it **should** be escalated.
+- Precision matters more than recall here — we want to avoid over-escalation.
+
+```python
+Escalation Precision = (True Positives / (True Positives + False Positives)) * 100
+```
+
+---
+
+### 3. **SLA Compliance Risk**
+**Goal**: Estimate how likely the ticket is to **miss SLA** based on urgency vs. target time.
+
+Simulate a very rough heuristic:
+
+- If `urgency_level == "high"` and `sla_target_time > 8` → at-risk
+- If `urgency_level == "medium"` and `sla_target_time > 24` → at-risk
+- Else, not at-risk
+
+```python
+SLA Risk Rate = (# At-Risk Tickets / Total Tickets) * 100
+```
+
+This tells you whether your priority agent is *underestimating urgency* or SLA needs.
+
+---
+
+## 🧪 Optional Bonus Metrics (if you want to go deeper)
+
+- **Priority Correlation**: Does `priority_score` correlate with `customer_tier` + `monthly_revenue`?
+- **Sentiment–Urgency Alignment**: Is low sentiment actually triggering `urgency_level = high`?
+- **Team Distribution**: Are some teams overloaded due to logic bias? (e.g., everything routed to Tier 1)
+
+---
+
+## ✅ Final Recommendation
+
+In your case study report, you can include this simple table format:
+
+| Metric                 | Description                               | Value (%) |
+|------------------------|-------------------------------------------|-----------|
+| Routing Accuracy       | Correct team assignment                   | 80%       |
+| Escalation Precision   | Escalations that were actually needed     | 100%      |
+| SLA Risk Rate          | % of tickets with potential SLA failure   | 20%       |
+
+And then describe:
+- How you defined "ground truth"
+- Any edge cases you noticed
+- If the agent logic over- or under-reacted
+
+---
+
+Let me know if you want help generating a scoring function or CSV summary automatically from your `main.py` runs!
+user
+Great, I’ll create a metrics.py and I thought of implementing
+Average sentiment score, Escalation count, Routing distribution
+I’ll add one more for fun: high-priority tickets per tier.
+ChatGPT
+Perfect — those are **smart, meaningful metrics**, and very easy to compute from your aggregated results.
+
+Here’s how you can structure `metrics.py` to include:
+
+1. **Average Sentiment Score**
+2. **Escalation Count**
+3. **Routing Distribution**
+4. **High-Priority Tickets per Customer Tier** (great insight)
+
+---
+
+## 📦 Suggested `metrics.py`
+
+```python
+from collections import Counter, defaultdict
+from typing import List, Dict, Any
+
+def calculate_metrics(results: List[Dict[str, Any]], raw_tickets: List[Dict[str, Any]]):
+    print("\n=== Evaluation Metrics ===")
+
+    # 1. Average sentiment score
+    avg_sentiment = round(sum(r["sentiment_score"] for r in results) / len(results), 2)
+    print(f"Average Sentiment Score: {avg_sentiment}")
+
+    # 2. Escalation count
+    escalation_count = sum(1 for r in results if r["escalate"])
+    print(f"Escalation Count: {escalation_count} / {len(results)}")
+
+    # 3. Routing distribution
+    routing_counts = Counter(r["assigned_team"] for r in results)
+    print("\nRouting Distribution:")
+    for team, count in routing_counts.items():
+        print(f"  {team}: {count} tickets")
+
+    # 4. High-priority tickets per customer tier
+    tier_priority_map = defaultdict(int)
+    for r, raw in zip(results, raw_tickets):
+        if r["priority_score"] >= 0.75:
+            tier = raw["customer_tier"]
+            tier_priority_map[tier] += 1
+
+    print("\nHigh-Priority Tickets per Customer Tier (priority_score ≥ 0.75):")
+    for tier, count in tier_priority_map.items():
+        print(f"  {tier}: {count} tickets")
+```
+
+---
+
+## ✅ How to Use in `main.py`
+
+At the end of `main.py`, after processing all tickets:
+
+```python
+from metrics import calculate_metrics
+
+# After loop:
+calculate_metrics(results=all_outputs, raw_tickets=test_tickets)
+```
+
+Assuming you stored outputs like this in your loop:
+```python
+all_outputs = []
+for ticket in test_tickets:
+    ...
+    all_outputs.append(aggregated_result)
+```
+
+---
+
+## 📊 Sample Output
+
+```
+=== Evaluation Metrics ===
+Average Sentiment Score: -0.12
+Escalation Count: 2 / 5
+
+Routing Distribution:
+  Billing: 1 tickets
+  Security: 1 tickets
+  Tier 2: 2 tickets
+  Tier 1: 1 tickets
+
+High-Priority Tickets per Customer Tier (priority_score ≥ 0.75):
+  premium: 1 tickets
+  enterprise: 2 tickets
+```
+
+---
+
+Let me know if you want to export the results and metrics into a report, JSON, or CSV file!
