@@ -1,10 +1,10 @@
-# 💡 Multi-Agent Ticket Routing System (Case Study)
+# Multi-Agent Ticket Routing System (Case Study)
 
 This project is a **multi-agent AI system** designed to analyze customer support tickets and intelligently route them based on ticket sentiment, customer profile, and urgency. The solution follows the **Pydantic AI** pattern and simulates a production-ready coordination between modular agents.
 
 ---
 
-## 🚀 Project Overview
+## Project Overview
 
 - **Architecture**: Modular multi-agent setup using Python + Pydantic
 - **Agents**:
@@ -15,7 +15,7 @@ This project is a **multi-agent AI system** designed to analyze customer support
 
 ---
 
-## 🔩 Folder Structure
+## Folder Structure
 
 ```
 customer-ticket-analyzer/
@@ -38,7 +38,7 @@ customer-ticket-analyzer/
 
 ---
 
-## 💠 How It Works
+## How It Works
 
 ### 1. `SentimentAgent`
 - Takes ticket subject + message
@@ -61,7 +61,7 @@ All agents use **Pydantic models** for clean validation and structure.
 
 ---
 
-## 📊 Evaluation Metrics
+## Evaluation Metrics
 
 After processing all 5 test tickets, the system outputs:
 
@@ -82,9 +82,9 @@ Example:
 
 ---
 
-## 🧪 Running the Project
+## Running the Project
 
-### ✅ Requirements
+### Requirements
 ```bash
 pip install -r requirements.txt
 ```
@@ -100,7 +100,7 @@ python main.py
 
 ---
 
-## 🤖 Mock Logic & Design
+## Mock Logic & Design
 
 - All agents currently use **mock logic** for scoring and decisions.
 - The architecture is **LLM-ready**: drop in OpenAI, Claude, Hugging Face, or Groq APIs later.
@@ -108,13 +108,13 @@ python main.py
 
 ---
 
-## 🎯 Key Insight
+## Key Insight
 
 > Rather than one monolithic prompt, this solution **uses three distinct AI perspectives** — sentiment, customer importance, and routing — to produce a cooperative, explainable decision system.
 
 ---
 
-## 📬 Contact
+## Contact
 
 Built by **Nisarga K**  
 For any questions, reach out at: `nisarganishu3112@gmail.com`
